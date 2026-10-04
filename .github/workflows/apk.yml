@@ -19,16 +19,34 @@ jobs:
           mkdir -p app/www && cd app
           cp -r "../A Colheita do Silêncio 2D/." www/
           echo '{"name":"colheita","version":"1.0.0","private":true}' > package.json
-          echo '{"appId":"com.colheita.silencio","appName":"A Colheita do Silêncio","webDir":"www","backgroundColor":"#000000"}' > capacitor.config.json
-          npm install @capacitor/core@6 @capacitor/android@6 @capacitor/cli@6 @capacitor/assets@3
-          mkdir -p assets && convert www/icons/icon-512.png -resize 1024x1024 assets/icon-only.png || true
+          echo '{"appId":"com.colheita.silencio","appName":"A Colheita do Silêncio 2D","webDir":"www","backgroundColor":"#000000"}' > capacitor.config.json
+          npm install @capacitor/core@6 @capacitor/android@6 @capacitor/cli@6
       - name: Criar app Android
         working-directory: app
         run: |
           npx cap add android
-          sed -i 's/<activity /<activity android:screenOrientation="sensorLandscape" /' android/app/src/main/AndroidManifest.xml
-          npx capacitor-assets generate --android || true
           npx cap sync android
+          sed -i 's/<activity /<activity android:screenOrientation="sensorLandscape" /' android/app/src/main/AndroidManifest.xml
+      - name: Nome e icone oficiais
+        working-directory: app
+        run: |
+          # Icone: usa icone.png da raiz do repositorio; se nao existir, usa o icone do jogo
+          if [ -f ../icone.png ]; then SRC=../icone.png; else SRC=www/icons/icon-512.png; fi
+          echo "Icone usado: $SRC"
+          if command -v magick >/dev/null; then IM=magick; else IM=convert; fi
+          RES=android/app/src/main/res
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            N=${d%%:*}; S=${d##*:}
+            mkdir -p $RES/mipmap-$N
+            $IM "$SRC" -resize ${S}x${S}! $RES/mipmap-$N/ic_launcher.png
+            cp $RES/mipmap-$N/ic_launcher.png $RES/mipmap-$N/ic_launcher_round.png
+            cp $RES/mipmap-$N/ic_launcher.png $RES/mipmap-$N/ic_launcher_foreground.png
+          done
+          rm -rf $RES/mipmap-anydpi-v26
+          # Nome exibido na tela do celular
+          sed -i 's#<string name="app_name">[^<]*</string>#<string name="app_name">A Colheita do Silêncio 2D</string>#; s#<string name="title_activity_main">[^<]*</string>#<string name="title_activity_main">A Colheita do Silêncio 2D</string>#' $RES/values/strings.xml
+          cat $RES/values/strings.xml
+          ls $RES/mipmap-*
       - name: Compilar APK
         working-directory: app/android
         run: |
